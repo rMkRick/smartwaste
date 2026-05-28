@@ -2,6 +2,31 @@ const Usuario = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
+// ── Validaciones en servidor ──────────────────────────────────────────────────
+const validarDatos = ({ nombres, apellidos, dni, correo, contrasena, zona_id }) => {
+    const errores = [];
+
+    if (!nombres || nombres.trim().length < 2)
+        errores.push('El nombre debe tener al menos 2 caracteres');
+
+    if (!apellidos || apellidos.trim().length < 2)
+        errores.push('El apellido debe tener al menos 2 caracteres');
+
+    if (!dni || !/^\d{8}$/.test(dni))
+        errores.push('El DNI debe tener exactamente 8 dígitos numéricos');
+
+    if (!correo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo))
+        errores.push('El correo electrónico no es válido');
+
+    if (!contrasena || contrasena.length < 8)
+        errores.push('La contraseña debe tener al menos 8 caracteres');
+
+    if (!zona_id || isNaN(zona_id))
+        errores.push('Debes seleccionar una zona de residencia');
+
+    return errores;
+};
+
 exports.register = async (req, res) => {
     try {
         const { nombres, apellidos, dni, correo, contrasena, rol_id, zona_id } = req.body;

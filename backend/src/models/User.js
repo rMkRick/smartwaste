@@ -5,6 +5,12 @@ const Usuario = {
         const [rows] = await db.execute('SELECT * FROM usuarios WHERE correo = ?', [correo]);
         return rows[0];
     },
+    
+    buscarPorDNI: async (dni) => {
+        const [rows] = await db.execute('SELECT * FROM usuarios WHERE dni = ?', [dni]);
+        return rows[0];
+    },
+
     crear: async (datosUsuario) => {
         const { nombres, apellidos, dni, correo, contrasena, rol_id, zona_id } = datosUsuario;
         const [result] = await db.execute(
