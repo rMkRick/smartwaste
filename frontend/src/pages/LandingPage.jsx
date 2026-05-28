@@ -64,6 +64,22 @@ const LandingPage = () => {
                     <a href="#solucion" style={{ textDecoration: 'none', color: colors.white, fontWeight: '500', fontSize: '15px' }}>Soluciones</a>
                     <a href="#mapas" style={{ textDecoration: 'none', color: colors.white, fontWeight: '500', fontSize: '15px' }}>Mapas</a>
                     <button 
+                        onClick={() => navigate('/register')}
+                        style={{ 
+                            padding: '12px 24px', 
+                            backgroundColor: 'transparent', 
+                            color: colors.white, 
+                            border: `2px solid ${colors.primary}`, 
+                            borderRadius: '6px', 
+                            fontWeight: '700',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Registrarse
+                    </button>   
+                   
+                   
+                    <button 
                         onClick={scrollToLogin}
                         style={{ 
                             padding: '12px 24px', 
@@ -191,6 +207,15 @@ const LandingPage = () => {
                         </form>
                         <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '14px' }}>
                             <span style={{ color: '#64748b' }}>¿Olvidó su contraseña?</span>
+                            <div style={{ marginTop: '12px', borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
+                                <span style={{ color: '#64748b' }}>¿No tienes cuenta? </span>
+                                <span 
+                                    onClick={() => navigate('/register')}
+                                    style={{ color: colors.primary, cursor: 'pointer', fontWeight: '700' }}
+                                >
+                                    Regístrate aquí
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>

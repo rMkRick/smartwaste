@@ -5,6 +5,7 @@ import Login from './pages/LoginPage';
 import Dashboard from './pages/DashboardPage';
 import GuestReportPage from './pages/GuestReportPage';
 import CitizenDashboard from './pages/CitizenDashboard';
+import RegisterPage from './pages/RegisterPage';
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<RegisterPage />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/citizen-dashboard" element={<CitizenDashboard />} />
         <Route path="/reportar-invitado" element={<GuestReportPage />} />
