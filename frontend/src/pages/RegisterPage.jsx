@@ -65,6 +65,7 @@ const s = {
         boxSizing: 'border-box',
         backgroundColor: 'white',
         cursor: 'pointer',
+        color: '#3c4043', 
     }),
     errorText: { color: '#d93025', fontSize: '12px', marginTop: '4px' },
     passwordWrap: { position: 'relative' },
