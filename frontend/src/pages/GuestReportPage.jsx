@@ -2,10 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Camera, MapPin, Send, ArrowLeft, Trash2, Shield, MapPin as MapPinIcon } from 'lucide-react';
 import { createReport } from '../services/api';
+import MapaPicker from '../components/MapaPicker';
 
 const GuestReportPage = () => {
     const [descripcion, setDescripcion] = useState('');
     const [tipoResiduoId, setTipoResiduoId] = useState(1);
+    const [latitud, setLatitud] = useState(-13.5319);
+    const [longitud, setLongitud] = useState(-71.9675);
     const navigate = useNavigate();
 
     // Paleta de colores consistente
@@ -20,9 +23,6 @@ const GuestReportPage = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const latitud = -13.5319; 
-            const longitud = -71.9675;
-
             const { data } = await createReport({
                 usuario_id: null,
                 foto_url: 'https://via.placeholder.com/300',
@@ -31,8 +31,9 @@ const GuestReportPage = () => {
                 tipo_residuo_id: tipoResiduoId,
                 descripcion
             });
+            void data;
 
-            alert(`Reporte enviado con éxito. Su ticket es: ${data.numero_ticket}`);
+            alert('Reporte enviado con éxito. El equipo municipal lo atenderá pronto.');
             navigate('/');
         } catch (error) {
             alert('Error al enviar reporte');
@@ -190,9 +191,12 @@ const GuestReportPage = () => {
                                 ></textarea>
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: '#f1f5f9', padding: '15px', borderRadius: '8px', color: '#475569', fontSize: '14px' }}>
-                                <MapPin size={18} color={colors.primary} /> 
-                                <span style={{ fontWeight: '500' }}>Ubicación: Plaza de Armas, Cusco</span>
+                            {/* Mapa interactivo */}
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '700', fontSize: '14px' }}>
+                                    Ubicación del incidente
+                                </label>
+                                <MapaPicker onChange={(lat, lng) => { setLatitud(lat); setLongitud(lng); }} />
                             </div>
 
                             <button type="submit" style={{ 

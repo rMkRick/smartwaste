@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trash2, Camera, MapPin, Send, LogOut, History, Bell, User, Shield, AlertTriangle } from 'lucide-react';
+import { Trash2, Camera, MapPin, Send, LogOut, History, Bell, User, Shield, AlertTriangle, TrendingUp, Calendar, Clock } from 'lucide-react';
 import { createReport } from '../services/api';
+import MapaPicker from '../components/MapaPicker';
 
 const CitizenDashboard = () => {
     const navigate = useNavigate();
@@ -10,25 +11,27 @@ const CitizenDashboard = () => {
     const [tipoResiduoId, setTipoResiduoId] = useState(1);
     const [previewUrl, setPreviewUrl] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [latitud, setLatitud] = useState(-13.5319);
+    const [longitud, setLongitud] = useState(-71.9675);
+    const [activeTab, setActiveTab] = useState('reportar');
 
-    // Paleta de colores consistente
     const colors = {
         primary: '#f97316',
         secondary: '#0f172a',
         text: '#334155',
         lightBg: '#f8fafc',
         white: '#ffffff',
-        success: '#22c55e'
+        success: '#22c55e',
+        warning: '#eab308',
+        danger: '#ef4444'
     };
 
     useEffect(() => {
         const userStr = localStorage.getItem('usuario');
         if (userStr) {
             const user = JSON.parse(userStr);
-            // Verificar si es ciudadano (rol_id 1)
             if (user.rol !== 1) {
-                // Si no es ciudadano, redirigir según su rol o al login
-                // Por ahora lo dejamos pasar o redirigimos
+                navigate('/');
             }
             setUsuario(user);
         } else {
@@ -52,24 +55,21 @@ const CitizenDashboard = () => {
         e.preventDefault();
         setLoading(true);
         try {
-            // Coordenadas simuladas de Cusco para el MVP
-            const latitud = -13.5319; 
-            const longitud = -71.9675;
-
             const { data } = await createReport({
                 usuario_id: usuario.id,
-                foto_url: previewUrl || 'https://via.placeholder.com/300', // En producción sería la URL de S3/Cloudinary
+                foto_url: previewUrl || 'https://via.placeholder.com/300',
                 latitud,
                 longitud,
                 tipo_residuo_id: tipoResiduoId,
                 descripcion
             });
 
-            alert(`¡Reporte registrado! Ticket: ${data.numero_ticket}`);
-            // Limpiar formulario
+            alert('¡Reporte enviado exitosamente! El equipo municipal lo atenderá pronto.');
             setDescripcion('');
             setPreviewUrl(null);
             setTipoResiduoId(1);
+            setLatitud(-13.5319);
+            setLongitud(-71.9675);
         } catch (error) {
             alert('Error al enviar reporte');
         } finally {
@@ -79,37 +79,43 @@ const CitizenDashboard = () => {
 
     return (
         <div style={{ fontFamily: '"Inter", sans-serif', backgroundColor: colors.lightBg, minHeight: '100vh' }}>
-            {/* Header del Ciudadano */}
-            <nav style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center', 
-                padding: '15px 8%', 
-                backgroundColor: colors.secondary, 
+            {/* Navbar Premium */}
+            <nav style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '20px 8%',
+                backgroundColor: colors.secondary,
                 color: colors.white,
                 position: 'sticky',
                 top: 0,
-                zIndex: 1000
+                zIndex: 1000,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '800', fontSize: '20px' }}>
-                    <Trash2 size={24} color={colors.primary} /> CIUDADANO SMART
-                </div>
-                <div style={{ display: 'flex', gap: '25px', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: 0.9 }}>
-                        <User size={18} /> {usuario?.nombre || 'Ciudadano'}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontWeight: '800', fontSize: '22px' }}>
+                    <div style={{ backgroundColor: colors.primary, padding: '8px 12px', borderRadius: '8px' }}>
+                        <Trash2 size={24} />
                     </div>
-                    <button 
+                    CITIZEN SMART
+                </div>
+                <div style={{ display: 'flex', gap: '30px', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.1)', padding: '10px 15px', borderRadius: '8px' }}>
+                        <User size={18} /> {usuario?.nombres || 'Ciudadano'}
+                    </div>
+                    <button
                         onClick={handleLogout}
-                        style={{ 
-                            backgroundColor: 'rgba(255,255,255,0.1)', 
-                            color: 'white', 
-                            border: 'none', 
-                            padding: '8px 15px', 
-                            borderRadius: '6px', 
+                        style={{
+                            backgroundColor: colors.primary,
+                            color: 'white',
+                            border: 'none',
+                            padding: '10px 18px',
+                            borderRadius: '8px',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '5px'
+                            gap: '6px',
+                            fontWeight: '700',
+                            fontSize: '14px'
                         }}
                     >
                         <LogOut size={16} /> Salir
@@ -118,35 +124,135 @@ const CitizenDashboard = () => {
             </nav>
 
             <main style={{ padding: '40px 8%' }}>
-                <div style={{ display: 'flex', gap: '40px', flexWrap: 'wrap' }}>
-                    
-                    {/* Columna Izquierda: Formulario de Reporte (HU-03) */}
-                    <div style={{ flex: '1 1 500px' }}>
-                        <div style={{ backgroundColor: colors.white, padding: '30px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
-                            <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px', color: colors.secondary, marginTop: 0 }}>
-                                <AlertTriangle color={colors.primary} /> Registrar Nuevo Reporte
-                            </h2>
-                            <p style={{ color: '#64748b', marginBottom: '25px' }}>
-                                Use este formulario para reportar puntos de acumulación de residuos o basura en la vía pública.
-                            </p>
+                {/* Estadísticas Rápidas */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '40px' }}>
+                    <div style={{ backgroundColor: colors.white, padding: '25px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', borderTop: `5px solid ${colors.primary}` }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                            <div style={{ backgroundColor: 'rgba(249, 115, 22, 0.1)', padding: '12px', borderRadius: '8px' }}>
+                                <AlertTriangle size={24} color={colors.primary} />
+                            </div>
+                            <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>Reportes Enviados</p>
+                        </div>
+                        <p style={{ margin: 0, fontSize: '28px', fontWeight: '800', color: colors.secondary }}>5</p>
+                    </div>
 
-                            <form onSubmit={handleSubmit}>
-                                {/* Evidencia Visual */}
-                                <div style={{ marginBottom: '20px' }}>
-                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '700' }}>Evidencia Fotográfica</label>
-                                    <div 
+                    <div style={{ backgroundColor: colors.white, padding: '25px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', borderTop: `5px solid ${colors.success}` }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                            <div style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', padding: '12px', borderRadius: '8px' }}>
+                                <TrendingUp size={24} color={colors.success} />
+                            </div>
+                            <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>Completados</p>
+                        </div>
+                        <p style={{ margin: 0, fontSize: '28px', fontWeight: '800', color: colors.secondary }}>3</p>
+                    </div>
+
+                    <div style={{ backgroundColor: colors.white, padding: '25px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', borderTop: `5px solid ${colors.warning}` }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                            <div style={{ backgroundColor: 'rgba(234, 179, 8, 0.1)', padding: '12px', borderRadius: '8px' }}>
+                                <Clock size={24} color={colors.warning} />
+                            </div>
+                            <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>En Proceso</p>
+                        </div>
+                        <p style={{ margin: 0, fontSize: '28px', fontWeight: '800', color: colors.secondary }}>2</p>
+                    </div>
+
+                    <div style={{ backgroundColor: colors.white, padding: '25px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', borderTop: `5px solid #3b82f6` }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                            <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: '12px', borderRadius: '8px' }}>
+                                <Bell size={24} color="#3b82f6" />
+                            </div>
+                            <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>Notificaciones</p>
+                        </div>
+                        <p style={{ margin: 0, fontSize: '28px', fontWeight: '800', color: colors.secondary }}>4</p>
+                    </div>
+                </div>
+
+                {/* Tabs */}
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '30px', borderBottom: `2px solid ${colors.lightBg}`, paddingBottom: '12px' }}>
+                    <button
+                        onClick={() => setActiveTab('reportar')}
+                        style={{
+                            padding: '12px 24px',
+                            backgroundColor: activeTab === 'reportar' ? colors.primary : 'transparent',
+                            color: activeTab === 'reportar' ? 'white' : colors.text,
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontWeight: '700',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            fontSize: '15px'
+                        }}
+                    >
+                        <AlertTriangle size={18} /> Nuevo Reporte
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('mis-reportes')}
+                        style={{
+                            padding: '12px 24px',
+                            backgroundColor: activeTab === 'mis-reportes' ? colors.primary : 'transparent',
+                            color: activeTab === 'mis-reportes' ? 'white' : colors.text,
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontWeight: '700',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            fontSize: '15px'
+                        }}
+                    >
+                        <History size={18} /> Mis Reportes
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('info')}
+                        style={{
+                            padding: '12px 24px',
+                            backgroundColor: activeTab === 'info' ? colors.primary : 'transparent',
+                            color: activeTab === 'info' ? 'white' : colors.text,
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontWeight: '700',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            fontSize: '15px'
+                        }}
+                    >
+                        <Shield size={18} /> Información
+                    </button>
+                </div>
+
+                {/* Tab: Reportar */}
+                {activeTab === 'reportar' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
+                        {/* Formulario */}
+                        <div style={{ backgroundColor: colors.white, padding: '30px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
+                            <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px', color: colors.secondary, marginTop: 0, fontSize: '20px', fontWeight: '800' }}>
+                                <AlertTriangle color={colors.primary} size={24} /> Reportar Incidencia
+                            </h2>
+                            <p style={{ color: '#64748b', marginBottom: '25px' }}>Ayúdanos proporcionando detalles precisos de la situación.</p>
+
+                            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                {/* Foto */}
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '10px', fontWeight: '700', fontSize: '14px', color: colors.secondary }}>Evidencia Fotográfica</label>
+                                    <div
                                         onClick={() => document.getElementById('fileInput').click()}
-                                        style={{ 
-                                            width: '100%', 
-                                            height: '200px', 
-                                            border: '2px dashed #cbd5e1', 
-                                            borderRadius: '12px', 
-                                            display: 'flex', 
+                                        style={{
+                                            width: '100%',
+                                            height: '180px',
+                                            border: `2px dashed ${colors.primary}`,
+                                            borderRadius: '12px',
+                                            display: 'flex',
                                             flexDirection: 'column',
-                                            alignItems: 'center', 
+                                            alignItems: 'center',
                                             justifyContent: 'center',
                                             cursor: 'pointer',
-                                            backgroundColor: '#f8fafc',
+                                            backgroundColor: 'rgba(249, 115, 22, 0.05)',
+                                            transition: 'all 0.3s',
                                             overflow: 'hidden',
                                             position: 'relative'
                                         }}
@@ -155,129 +261,203 @@ const CitizenDashboard = () => {
                                             <img src={previewUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                         ) : (
                                             <>
-                                                <Camera size={40} color="#94a3b8" />
-                                                <span style={{ color: '#64748b', marginTop: '10px' }}>Haga clic para subir o tomar foto</span>
+                                                <Camera size={40} color={colors.primary} />
+                                                <span style={{ color: colors.primary, marginTop: '8px', fontWeight: '700', fontSize: '14px' }}>Haz clic para subir</span>
                                             </>
                                         )}
                                     </div>
                                     <input id="fileInput" type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
                                 </div>
 
-                                {/* Tipo de Residuo */}
-                                <div style={{ marginBottom: '20px' }}>
-                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '700' }}>Tipo de Residuo</label>
-                                    <select 
-                                        value={tipoResiduoId} 
+                                {/* Tipo */}
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '700', fontSize: '14px', color: colors.secondary }}>Tipo de Residuo</label>
+                                    <select
+                                        value={tipoResiduoId}
                                         onChange={(e) => setTipoResiduoId(e.target.value)}
-                                        style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '16px' }}
+                                        style={{
+                                            width: '100%',
+                                            padding: '12px',
+                                            borderRadius: '8px',
+                                            border: `1px solid #cbd5e1`,
+                                            fontSize: '14px',
+                                            fontWeight: '500'
+                                        }}
                                     >
-                                        <option value={1}>Orgánico</option>
-                                        <option value={2}>Reciclable</option>
-                                        <option value={3}>No Reciclable</option>
-                                        <option value={4}>Peligroso</option>
+                                        <option value={1}>🍃 Orgánico</option>
+                                        <option value={2}>♻️ Reciclable</option>
+                                        <option value={3}>🗑️ No Reciclable</option>
+                                        <option value={4}>⚠️ Peligroso</option>
                                     </select>
                                 </div>
 
                                 {/* Descripción */}
-                                <div style={{ marginBottom: '20px' }}>
-                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '700' }}>Descripción Detallada</label>
-                                    <textarea 
-                                        rows="3" 
-                                        placeholder="Describa la situación (ej. cantidad de basura, olor, urgencia...)"
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '700', fontSize: '14px', color: colors.secondary }}>Descripción Detallada</label>
+                                    <textarea
+                                        rows="4"
+                                        placeholder="Describe la situación con detalle (cantidad, ubicación exacta, urgencia...)"
                                         value={descripcion}
                                         onChange={(e) => setDescripcion(e.target.value)}
-                                        style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '16px', resize: 'none' }}
+                                        style={{
+                                            width: '100%',
+                                            padding: '12px',
+                                            borderRadius: '8px',
+                                            border: '1px solid #cbd5e1',
+                                            fontSize: '14px',
+                                            resize: 'none',
+                                            fontFamily: 'inherit'
+                                        }}
                                         required
                                     ></textarea>
                                 </div>
 
-                                {/* Mapa / Ubicación (Simulado HU-03) */}
-                                <div style={{ marginBottom: '25px', backgroundColor: '#eff6ff', padding: '15px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#1e40af', marginBottom: '10px' }}>
-                                        <MapPin size={20} /> <span style={{ fontWeight: '700' }}>Ubicación GPS Detectada</span>
-                                    </div>
-                                    <div style={{ height: '150px', backgroundColor: '#dbeafe', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyCenter: 'center', textAlign: 'center', color: '#3b82f6', fontWeight: '600', fontSize: '14px' }}>
-                                        [ MAPA INTERACTIVO: Plaza de Armas, Cusco ]<br/>
-                                        Coordenadas: -13.5319, -71.9675
-                                    </div>
-                                </div>
-
-                                <button 
-                                    type="submit" 
+                                <button
+                                    type="submit"
                                     disabled={loading}
-                                    style={{ 
-                                        width: '100%', 
-                                        padding: '16px', 
-                                        backgroundColor: colors.primary, 
-                                        color: 'white', 
-                                        border: 'none', 
-                                        borderRadius: '8px', 
-                                        fontSize: '18px', 
-                                        fontWeight: '800', 
+                                    style={{
+                                        width: '100%',
+                                        padding: '14px',
+                                        backgroundColor: colors.primary,
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        fontSize: '16px',
+                                        fontWeight: '800',
                                         cursor: loading ? 'not-allowed' : 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        gap: '10px'
+                                        gap: '10px',
+                                        transition: 'all 0.3s'
                                     }}
                                 >
-                                    {loading ? 'Enviando...' : <><Send size={20} /> Enviar Reporte Oficial</>}
+                                    <Send size={20} /> {loading ? 'Enviando...' : 'Enviar Reporte'}
                                 </button>
                             </form>
                         </div>
-                    </div>
 
-                    {/* Columna Derecha: Información y Estado */}
-                    <div style={{ flex: '0 1 400px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        
-                        {/* Notificaciones Rápidas */}
-                        <div style={{ backgroundColor: colors.white, padding: '25px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
-                            <h3 style={{ margin: '0 0 15px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <Bell size={20} color={colors.primary} /> Avisos de Recolección
+                        {/* Mapa */}
+                        <div style={{ backgroundColor: colors.white, padding: '30px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', color: colors.secondary, marginTop: 0, fontSize: '16px', fontWeight: '700' }}>
+                                <MapPin color={colors.primary} size={20} /> Ubicación del Incidente
                             </h3>
-                            <div style={{ borderLeft: `4px solid ${colors.primary}`, paddingLeft: '15px', marginBottom: '15px' }}>
-                                <p style={{ margin: 0, fontWeight: '700', fontSize: '14px' }}>Zona: Centro Histórico</p>
-                                <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Próxima recolección: Hoy 8:00 PM</p>
+                            <p style={{ color: '#64748b', marginBottom: '15px', fontSize: '14px' }}>Selecciona la ubicación haciendo clic en el mapa o usando GPS.</p>
+                            <MapaPicker onChange={(lat, lng) => { setLatitud(lat); setLongitud(lng); }} />
+
+                            <div style={{ marginTop: '25px', backgroundColor: colors.lightBg, padding: '20px', borderRadius: '10px' }}>
+                                <h4 style={{ margin: '0 0 15px 0', fontSize: '14px', fontWeight: '700', color: colors.secondary }}>Zonas de Recolección</h4>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    {[
+                                        { zona: 'Centro Histórico', hora: 'Hoy 20:00', color: colors.primary },
+                                        { zona: 'San Blas', hora: 'Mañana 19:00', color: colors.success },
+                                        { zona: 'San Sebastián', hora: 'Jueves 18:00', color: colors.warning }
+                                    ].map((item, i) => (
+                                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', backgroundColor: 'white', borderRadius: '8px', borderLeft: `4px solid ${item.color}` }}>
+                                            <div style={{ flex: 1 }}>
+                                                <p style={{ margin: 0, fontWeight: '700', fontSize: '14px' }}>{item.zona}</p>
+                                                <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>{item.hora}</p>
+                                            </div>
+                                            <Calendar size={16} color={item.color} />
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                            <div style={{ borderLeft: '4px solid #cbd5e1', paddingLeft: '15px' }}>
-                                <p style={{ margin: 0, fontWeight: '700', fontSize: '14px' }}>Reciclables</p>
-                                <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Mañana Miércoles 9:00 AM</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Tab: Mis Reportes */}
+                {activeTab === 'mis-reportes' && (
+                    <div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+                            {[
+                                { id: 1, zona: 'Calle Plateros', estado: 'Completado', fecha: 'Ayer, 4:30 PM', tipo: 'Orgánico', badge: colors.success },
+                                { id: 2, zona: 'Plaza San Blas', estado: 'En Proceso', fecha: '15 May', tipo: 'Reciclable', badge: colors.warning },
+                                { id: 3, zona: 'Av. de la Cultura', estado: 'Enviado', fecha: '10 May', tipo: 'No Reciclable', badge: colors.primary }
+                            ].map((rep) => (
+                                <div key={rep.id} style={{ backgroundColor: colors.white, padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', borderTop: `5px solid ${rep.badge}` }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '15px' }}>
+                                        <div>
+                                            <h3 style={{ margin: '0 0 5px 0', fontSize: '16px', fontWeight: '800', color: colors.secondary }}>Reporte #{rep.id}</h3>
+                                            <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>{rep.fecha}</p>
+                                        </div>
+                                        <span style={{ backgroundColor: rep.badge, color: 'white', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700' }}>
+                                            {rep.estado}
+                                        </span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', padding: '10px', backgroundColor: colors.lightBg, borderRadius: '8px' }}>
+                                        <MapPin size={16} color={colors.primary} />
+                                        <span style={{ fontSize: '14px', fontWeight: '600' }}>{rep.zona}</span>
+                                    </div>
+                                    <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#64748b' }}>Tipo: <span style={{ fontWeight: '700', color: colors.secondary }}>{rep.tipo}</span></p>
+                                    <button style={{ width: '100%', padding: '10px', backgroundColor: colors.primary, color: 'white', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '13px' }}>
+                                        Ver Detalles
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Tab: Información */}
+                {activeTab === 'info' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '25px' }}>
+                        <div style={{ backgroundColor: colors.white, padding: '25px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
+                            <h3 style={{ margin: '0 0 15px 0', display: 'flex', alignItems: 'center', gap: '10px', color: colors.secondary, fontSize: '16px', fontWeight: '800' }}>
+                                <Shield color={colors.primary} size={20} /> ¿Cómo Reportar?
+                            </h3>
+                            <ol style={{ margin: 0, paddingLeft: '20px', color: '#64748b', lineHeight: '1.8', fontSize: '14px' }}>
+                                <li>Toma una fotografía clara del problema</li>
+                                <li>Selecciona el tipo de residuo</li>
+                                <li>Describe la situación con detalle</li>
+                                <li>Marca la ubicación en el mapa</li>
+                                <li>¡Envía tu reporte!</li>
+                            </ol>
+                        </div>
+
+                        <div style={{ backgroundColor: colors.white, padding: '25px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
+                            <h3 style={{ margin: '0 0 15px 0', display: 'flex', alignItems: 'center', gap: '10px', color: colors.secondary, fontSize: '16px', fontWeight: '800' }}>
+                                <TrendingUp color={colors.success} size={20} /> Tu Impacto
+                            </h3>
+                            <p style={{ margin: '0 0 15px 0', color: '#64748b', fontSize: '14px', lineHeight: '1.6' }}>
+                                Gracias a tu participación, Cusco es más limpio. Tus reportes han contribuido a:
+                            </p>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: colors.primary }}></div>
+                                    <span style={{ fontSize: '13px', color: '#64748b' }}>5 zonas limpias</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: colors.success }}></div>
+                                    <span style={{ fontSize: '13px', color: '#64748b' }}>500 kg recolectados</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: colors.warning }}></div>
+                                    <span style={{ fontSize: '13px', color: '#64748b' }}>50 árboles plantados</span>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Mis Reportes Recientes */}
-                        <div style={{ backgroundColor: colors.secondary, padding: '25px', borderRadius: '12px', color: 'white' }}>
-                            <h3 style={{ margin: '0 0 15px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <History size={20} color={colors.primary} /> Mis Reportes
+                        <div style={{ backgroundColor: colors.white, padding: '25px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
+                            <h3 style={{ margin: '0 0 15px 0', display: 'flex', alignItems: 'center', gap: '10px', color: colors.secondary, fontSize: '16px', fontWeight: '800' }}>
+                                <Bell color={colors.primary} size={20} /> Próximas Recolecciones
                             </h3>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '8px', fontSize: '14px' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                                        <span style={{ fontWeight: '700' }}>Ticket #SW-9921</span>
-                                        <span style={{ color: colors.primary }}>Pendiente</span>
+                                {[
+                                    { zona: 'Tu Zona', tipo: 'Todos los tipos', hora: 'Hoy 20:00' },
+                                    { zona: 'Orgánicos', tipo: 'Residuos', hora: 'Lunes 18:00' },
+                                    { zona: 'Reciclables', tipo: 'Vidrio, Plástico', hora: 'Miércoles 19:00' }
+                                ].map((item, i) => (
+                                    <div key={i} style={{ padding: '12px', backgroundColor: colors.lightBg, borderRadius: '8px', borderLeft: `3px solid ${colors.primary}` }}>
+                                        <p style={{ margin: '0 0 3px 0', fontSize: '14px', fontWeight: '700', color: colors.secondary }}>{item.zona}</p>
+                                        <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>{item.tipo} · {item.hora}</p>
                                     </div>
-                                    <p style={{ margin: 0, opacity: 0.7 }}>Ayer, 4:30 PM - Calle Plateros</p>
-                                </div>
-                                <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '8px', fontSize: '14px' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                                        <span style={{ fontWeight: '700' }}>Ticket #SW-8812</span>
-                                        <span style={{ color: colors.success }}>Resuelto</span>
-                                    </div>
-                                    <p style={{ margin: 0, opacity: 0.7 }}>15 May - Plaza San Blas</p>
-                                </div>
+                                ))}
                             </div>
                         </div>
-
-                        {/* Tips de Segregación */}
-                        <div style={{ backgroundColor: colors.white, padding: '25px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
-                            <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>¿Sabías qué?</h3>
-                            <p style={{ fontSize: '14px', lineHeight: '1.5', color: colors.text }}>
-                                Segregar tus residuos orgánicos ayuda a reducir los gases de efecto invernadero en el botadero de Haquira. ¡Cusco te lo agradece!
-                            </p>
-                        </div>
-
                     </div>
-                </div>
+                )}
             </main>
         </div>
     );
