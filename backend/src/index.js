@@ -29,7 +29,11 @@ app.use('/api/supervisor',     require('./routes/supervisorRoutes'));
 
 app.get('/', (req, res) => res.json({ mensaje: 'SmartWaste API - Cusco', version: '2.0' }));
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Servidor en http://localhost:${PORT}`);
-});
+if (require.main === module) {
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => {
+        console.log(`Servidor en http://localhost:${PORT}`);
+    });
+}
+
+module.exports = app;
