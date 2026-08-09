@@ -1,27 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trash2, LogOut, Truck, MapPin, CheckCircle, Clock, AlertTriangle, Navigation, Play, Pause, Zap } from 'lucide-react';
+import { LogOut, Truck, MapPin, Clock, AlertTriangle, Navigation, Play } from 'lucide-react';
+import MapaRuta from '../components/MapaRuta';
+import { getMiRuta, actualizarGPSCamion } from '../services/api';
+
+// Compara la fecha DATE que devuelve MySQL (mysql2 la serializa como
+// medianoche UTC) contra la fecha local de hoy sin desfasarse por zona horaria.
+const fechaUTC = (valor) => {
+    const d = new Date(valor);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+};
+const hoyLocal = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 const OperadorDashboard = () => {
     const navigate = useNavigate();
     const [usuario, setUsuario] = useState(null);
-    const [rutaAsignada, setRutaAsignada] = useState({
-        ruta: { nombre: 'Ruta Centro 01' },
-        zona: { nombre: 'Centro Histórico' },
-        camion: { placa: 'X1Y-888', modelo: 'Volvo FE', capacidad_kg: 15000, gps_activo: true },
-        horarios: [
-            { dia_semana: 'Lunes', hora_inicio: '20:00:00', hora_fin: '22:00:00' },
-            { dia_semana: 'Miércoles', hora_inicio: '20:00:00', hora_fin: '22:00:00' }
-        ],
-        estado: 'en_proceso'
-    });
-    const [gpsActivo, setGpsActivo] = useState(true);
-    const [ubicacion, setUbicacion] = useState({ lat: -13.5319, lng: -71.9675 });
-    const [loading, setLoading] = useState(false);
-    const [recolecciones, setRecolecciones] = useState([
-        { id: 1, zona: 'Centro Histórico', estado: 'completado', cantidad_kg: 450, hora: '20:30' },
-        { id: 2, zona: 'Plaza de Armas', estado: 'en_proceso', cantidad_kg: 0, hora: '19:45' }
-    ]);
+    const [asignacionesHoy, setAsignacionesHoy] = useState([]);
+    const [cargando, setCargando] = useState(true);
+    const [error, setError] = useState('');
+
+    const [rutaActivaId, setRutaActivaId] = useState(null);
+    const [iniciandoId, setIniciandoId] = useState(null);
+    const [ubicacionActual, setUbicacionActual] = useState(null);
+    const [gpsError, setGpsError] = useState('');
+
+    const watchIdRef = useRef(null);
+    const ultimoEnvioRef = useRef(0);
 
     const colors = {
         primary: '#f97316',
@@ -35,42 +42,71 @@ const OperadorDashboard = () => {
 
     useEffect(() => {
         const userStr = localStorage.getItem('usuario');
-        if (userStr) {
-            const user = JSON.parse(userStr);
-            if (user.rol !== 2) navigate('/');
-            setUsuario(user);
-        } else {
-            navigate('/');
-        }
+        if (!userStr) { navigate('/'); return; }
+        const user = JSON.parse(userStr);
+        if (user.rol !== 2) { navigate('/'); return; }
+        setUsuario(user);
+
+        getMiRuta()
+            .then(({ data }) => {
+                const hoy = hoyLocal();
+                setAsignacionesHoy(data.filter(a => fechaUTC(a.fecha_asignacion) === hoy));
+            })
+            .catch(() => setError('No se pudo cargar tu ruta de hoy'))
+            .finally(() => setCargando(false));
+
+        return () => {
+            if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+        };
     }, [navigate]);
 
-    const activarGPS = () => {
+    const enviarUbicacion = (camionId, lat, lng, { forzar = false } = {}) => {
+        const ahora = Date.now();
+        if (!forzar && ahora - ultimoEnvioRef.current < 15000) return;
+        ultimoEnvioRef.current = ahora;
+        actualizarGPSCamion(camionId, { latitud: lat, longitud: lng, gps_activo: true }).catch(() => {});
+    };
+
+    const iniciarRuta = (asignacion) => {
         if (!navigator.geolocation) {
-            alert('GPS no disponible');
+            setGpsError('Tu navegador no soporta geolocalización');
             return;
         }
-        setLoading(true);
+        setIniciandoId(asignacion.id);
+        setGpsError('');
+
         navigator.geolocation.getCurrentPosition(
             ({ coords }) => {
-                setUbicacion({ lat: coords.latitude, lng: coords.longitude });
-                setGpsActivo(true);
-                setLoading(false);
+                const punto = { lat: coords.latitude, lng: coords.longitude };
+                setUbicacionActual(punto);
+                enviarUbicacion(asignacion.camion_id, punto.lat, punto.lng, { forzar: true });
+                setRutaActivaId(asignacion.id);
+                setIniciandoId(null);
+
+                watchIdRef.current = navigator.geolocation.watchPosition(
+                    (pos) => {
+                        const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                        setUbicacionActual(p);
+                        enviarUbicacion(asignacion.camion_id, p.lat, p.lng);
+                    },
+                    () => setGpsError('Se perdió la señal de GPS'),
+                    { enableHighAccuracy: true, maximumAge: 5000 }
+                );
             },
             () => {
-                alert('Error al obtener ubicación');
-                setLoading(false);
+                setGpsError('No se pudo obtener tu ubicación. Revisa los permisos del navegador.');
+                setIniciandoId(null);
             }
         );
     };
 
-    const completarRecoleccion = (id) => {
-        setRecolecciones(recolecciones.map(r => r.id === id ? { ...r, estado: 'completado' } : r));
-    };
-
     const handleLogout = () => {
+        if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
         localStorage.clear();
         navigate('/');
     };
+
+    const rutaActiva = asignacionesHoy.find(a => a.id === rutaActivaId) || null;
 
     return (
         <div style={{ fontFamily: '"Inter", sans-serif', backgroundColor: colors.lightBg, minHeight: '100vh' }}>
@@ -105,194 +141,113 @@ const OperadorDashboard = () => {
             </nav>
 
             <main style={{ padding: '40px 8%' }}>
-                {/* Estado Ruta */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', marginBottom: '40px' }}>
-                    {/* Tarjeta Ruta */}
-                    <div style={{ backgroundColor: colors.white, padding: '30px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+                {cargando && (
+                    <p style={{ color: colors.text }}>Cargando tu ruta de hoy...</p>
+                )}
+
+                {error && (
+                    <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.08)', border: '1px solid #ef4444', color: '#b91c1c', padding: '16px 20px', borderRadius: '10px', marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <AlertTriangle size={18} /> {error}
+                    </div>
+                )}
+
+                {!cargando && !error && asignacionesHoy.length === 0 && (
+                    <div style={{ backgroundColor: colors.white, padding: '40px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', textAlign: 'center' }}>
+                        <Clock size={36} color="#94a3b8" style={{ marginBottom: '12px' }} />
+                        <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: colors.secondary }}>No tienes ruta asignada para hoy</h2>
+                        <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: '#64748b' }}>Cuando el supervisor te asigne una ruta, aparecerá aquí.</p>
+                    </div>
+                )}
+
+                {!cargando && asignacionesHoy.length > 0 && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '25px', marginBottom: '40px' }}>
+                        {asignacionesHoy.map((a) => {
+                            const enCurso = a.id === rutaActivaId;
+                            return (
+                                <div key={a.id} style={{ backgroundColor: colors.white, padding: '30px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', borderTop: `4px solid ${enCurso ? colors.success : colors.primary}` }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                                        <div style={{ backgroundColor: 'rgba(249, 115, 22, 0.1)', padding: '12px', borderRadius: '8px' }}>
+                                            <Truck size={28} color={colors.primary} />
+                                        </div>
+                                        <div>
+                                            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: colors.secondary }}>{a.ruta_nombre}</h2>
+                                            <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: enCurso ? colors.success : '#64748b', fontWeight: enCurso ? '700' : '400' }}>
+                                                {enCurso ? 'Ruta en curso' : a.estado === 'en_proceso' ? 'En proceso' : 'Pendiente de iniciar'}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ backgroundColor: colors.lightBg, padding: '20px', borderRadius: '10px', marginBottom: '20px' }}>
+                                        <div style={{ marginBottom: '15px' }}>
+                                            <p style={{ margin: '0 0 5px 0', fontSize: '12px', color: '#64748b', fontWeight: '700' }}>ZONA</p>
+                                            <p style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: colors.primary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <MapPin size={16} /> {a.zona_nombre}
+                                            </p>
+                                        </div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                                            <div>
+                                                <p style={{ margin: '0 0 5px 0', fontSize: '12px', color: '#64748b', fontWeight: '700' }}>CAMIÓN</p>
+                                                <p style={{ margin: 0, fontSize: '14px', fontWeight: '700' }}>{a.placa} · {a.modelo}</p>
+                                            </div>
+                                            <div>
+                                                <p style={{ margin: '0 0 5px 0', fontSize: '12px', color: '#64748b', fontWeight: '700' }}>HORARIO</p>
+                                                <p style={{ margin: 0, fontSize: '14px', fontWeight: '700' }}>
+                                                    {a.hora_inicio ? `${a.hora_inicio.slice(0, 5)} - ${a.hora_fin?.slice(0, 5) ?? ''}` : 'Sin horario fijo'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {!enCurso ? (
+                                        <button
+                                            onClick={() => iniciarRuta(a)}
+                                            disabled={iniciandoId === a.id}
+                                            style={{
+                                                width: '100%', padding: '14px', backgroundColor: colors.success, color: 'white',
+                                                border: 'none', borderRadius: '8px', fontWeight: '800',
+                                                cursor: iniciandoId === a.id ? 'not-allowed' : 'pointer',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '15px'
+                                            }}
+                                        >
+                                            <Play size={18} />
+                                            {iniciandoId === a.id ? 'Obteniendo ubicación...' : 'Iniciar Ruta'}
+                                        </button>
+                                    ) : (
+                                        <div style={{ padding: '14px', backgroundColor: 'rgba(34, 197, 94, 0.1)', color: colors.success, borderRadius: '8px', fontWeight: '800', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                            <Navigation size={18} /> GPS activo — sigue la ruta abajo
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {rutaActiva && (
+                    <div style={{ backgroundColor: colors.white, padding: '30px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', marginBottom: '40px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-                            <div style={{ backgroundColor: 'rgba(249, 115, 22, 0.1)', padding: '12px', borderRadius: '8px' }}>
-                                <Truck size={28} color={colors.primary} />
+                            <div style={{ backgroundColor: 'rgba(37, 99, 235, 0.1)', padding: '12px', borderRadius: '8px' }}>
+                                <Navigation size={28} color="#2563eb" />
                             </div>
                             <div>
-                                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: colors.secondary }}>Mi Ruta Hoy</h2>
-                                <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: '#64748b' }}>Operación en curso</p>
-                            </div>
-                        </div>
-
-                        <div style={{ backgroundColor: colors.lightBg, padding: '20px', borderRadius: '10px', marginBottom: '20px' }}>
-                            <div style={{ marginBottom: '15px' }}>
-                                <p style={{ margin: '0 0 5px 0', fontSize: '12px', color: '#64748b', fontWeight: '700' }}>RUTA</p>
-                                <p style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: colors.secondary }}>{rutaAsignada.ruta.nombre}</p>
-                            </div>
-                            <div style={{ marginBottom: '15px' }}>
-                                <p style={{ margin: '0 0 5px 0', fontSize: '12px', color: '#64748b', fontWeight: '700' }}>ZONA</p>
-                                <p style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: colors.primary, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <MapPin size={16} /> {rutaAsignada.zona.nombre}
+                                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: colors.secondary }}>Ruta en vivo — {rutaActiva.ruta_nombre}</h2>
+                                <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: '#64748b' }}>
+                                    {ubicacionActual
+                                        ? `Lat ${ubicacionActual.lat.toFixed(6)}, Lng ${ubicacionActual.lng.toFixed(6)}`
+                                        : 'Esperando señal GPS...'}
                                 </p>
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                                <div>
-                                    <p style={{ margin: '0 0 5px 0', fontSize: '12px', color: '#64748b', fontWeight: '700' }}>CAMIÓN</p>
-                                    <p style={{ margin: 0, fontSize: '14px', fontWeight: '700' }}>{rutaAsignada.camion.placa}</p>
-                                </div>
-                                <div>
-                                    <p style={{ margin: '0 0 5px 0', fontSize: '12px', color: '#64748b', fontWeight: '700' }}>CAPACIDAD</p>
-                                    <p style={{ margin: 0, fontSize: '14px', fontWeight: '700' }}>{rutaAsignada.camion.capacidad_kg.toLocaleString()} kg</p>
-                                </div>
-                            </div>
                         </div>
 
-                        <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
-                            <p style={{ margin: '0 0 12px 0', fontSize: '12px', fontWeight: '700', color: colors.secondary, textTransform: 'uppercase' }}>Horarios de Recolección</p>
-                            {rutaAsignada.horarios.map((h, i) => (
-                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < rutaAsignada.horarios.length - 1 ? '1px solid #e2e8f0' : 'none' }}>
-                                    <span style={{ fontSize: '13px', color: '#64748b' }}>{h.dia_semana}</span>
-                                    <span style={{ fontSize: '13px', fontWeight: '700', color: colors.secondary }}>{h.hora_inicio} - {h.hora_fin}</span>
-                                </div>
-                            ))}
-                        </div>
+                        {gpsError && (
+                            <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.08)', border: '1px solid #ef4444', color: '#b91c1c', padding: '12px 16px', borderRadius: '8px', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px' }}>
+                                <AlertTriangle size={16} /> {gpsError}
+                            </div>
+                        )}
+
+                        <MapaRuta waypoints={rutaActiva.waypoints} ubicacionActual={ubicacionActual} height="480px" />
                     </div>
-
-                    {/* GPS y Ubicación */}
-                    <div style={{ backgroundColor: colors.white, padding: '30px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-                            <div style={{ backgroundColor: gpsActivo ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', padding: '12px', borderRadius: '8px' }}>
-                                <Navigation size={28} color={gpsActivo ? colors.success : '#ef4444'} />
-                            </div>
-                            <div>
-                                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: colors.secondary }}>Rastreo GPS</h2>
-                                <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: gpsActivo ? colors.success : '#ef4444', fontWeight: '700' }}>
-                                    {gpsActivo ? '🟢 Activo' : '🔴 Inactivo'}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div style={{ backgroundColor: gpsActivo ? 'rgba(34, 197, 94, 0.05)' : 'rgba(239, 68, 68, 0.05)', padding: '20px', borderRadius: '10px', marginBottom: '20px' }}>
-                            <div style={{ marginBottom: '15px' }}>
-                                <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#64748b', fontWeight: '700' }}>LATITUD</p>
-                                <p style={{ margin: 0, fontSize: '16px', fontWeight: '800', fontFamily: 'monospace', color: colors.secondary }}>{ubicacion.lat.toFixed(6)}</p>
-                            </div>
-                            <div>
-                                <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#64748b', fontWeight: '700' }}>LONGITUD</p>
-                                <p style={{ margin: 0, fontSize: '16px', fontWeight: '800', fontFamily: 'monospace', color: colors.secondary }}>{ubicacion.lng.toFixed(6)}</p>
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={activarGPS}
-                            disabled={loading}
-                            style={{
-                                width: '100%',
-                                padding: '14px',
-                                backgroundColor: gpsActivo ? colors.warning : colors.success,
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '8px',
-                                fontWeight: '800',
-                                cursor: loading ? 'not-allowed' : 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '10px',
-                                fontSize: '15px',
-                                marginBottom: '15px'
-                            }}
-                        >
-                            <Zap size={18} />
-                            {loading ? 'Actualizando...' : gpsActivo ? 'GPS Activo' : 'Activar GPS'}
-                        </button>
-
-                        <div style={{ backgroundColor: colors.lightBg, padding: '15px', borderRadius: '8px' }}>
-                            <p style={{ margin: '0 0 10px 0', fontSize: '12px', fontWeight: '700', color: colors.secondary }}>INFO CAMIÓN</p>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ fontSize: '13px', color: '#64748b' }}>Modelo:</span>
-                                    <span style={{ fontSize: '13px', fontWeight: '700' }}>{rutaAsignada.camion.modelo}</span>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ fontSize: '13px', color: '#64748b' }}>Estado GPS:</span>
-                                    <span style={{ fontSize: '13px', fontWeight: '700', color: colors.success }}>Activo</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Recolecciones */}
-                <div style={{ backgroundColor: colors.white, padding: '30px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '25px' }}>
-                        <div style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', padding: '12px', borderRadius: '8px' }}>
-                            <CheckCircle size={24} color={colors.success} />
-                        </div>
-                        <div>
-                            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: colors.secondary }}>Recolecciones de Hoy</h2>
-                            <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: '#64748b' }}>Progreso de operaciones</p>
-                        </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '15px' }}>
-                        {recolecciones.map((rec) => (
-                            <div key={rec.id} style={{ backgroundColor: colors.lightBg, padding: '20px', borderRadius: '10px', borderTop: `4px solid ${rec.estado === 'completado' ? colors.success : colors.warning}` }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
-                                    <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: colors.secondary }}>{rec.zona}</h3>
-                                    <span style={{ backgroundColor: rec.estado === 'completado' ? colors.success : colors.warning, color: 'white', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase' }}>
-                                        {rec.estado}
-                                    </span>
-                                </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '15px' }}>
-                                    <div>
-                                        <p style={{ margin: '0 0 3px 0', fontSize: '11px', color: '#64748b', fontWeight: '700' }}>CANTIDAD</p>
-                                        <p style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: colors.secondary }}>{rec.cantidad_kg} kg</p>
-                                    </div>
-                                    <div>
-                                        <p style={{ margin: '0 0 3px 0', fontSize: '11px', color: '#64748b', fontWeight: '700' }}>HORA</p>
-                                        <p style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: colors.secondary }}>{rec.hora}</p>
-                                    </div>
-                                </div>
-                                {rec.estado === 'en_proceso' && (
-                                    <button
-                                        onClick={() => completarRecoleccion(rec.id)}
-                                        style={{
-                                            width: '100%',
-                                            padding: '10px',
-                                            backgroundColor: colors.success,
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '6px',
-                                            fontWeight: '700',
-                                            cursor: 'pointer',
-                                            fontSize: '13px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            gap: '6px'
-                                        }}
-                                    >
-                                        <CheckCircle size={14} /> Marcar Completada
-                                    </button>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-
-                    <div style={{ marginTop: '25px', padding: '20px', backgroundColor: 'rgba(34, 197, 94, 0.05)', borderRadius: '10px', borderLeft: `4px solid ${colors.success}` }}>
-                        <p style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: '700', color: colors.secondary }}>Estadísticas del día</p>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px' }}>
-                            <div>
-                                <p style={{ margin: 0, fontSize: '11px', color: '#64748b' }}>Completadas</p>
-                                <p style={{ margin: '3px 0 0 0', fontSize: '20px', fontWeight: '800', color: colors.success }}>1</p>
-                            </div>
-                            <div>
-                                <p style={{ margin: 0, fontSize: '11px', color: '#64748b' }}>En Proceso</p>
-                                <p style={{ margin: '3px 0 0 0', fontSize: '20px', fontWeight: '800', color: colors.warning }}>1</p>
-                            </div>
-                            <div>
-                                <p style={{ margin: 0, fontSize: '11px', color: '#64748b' }}>Total Recolectado</p>
-                                <p style={{ margin: '3px 0 0 0', fontSize: '20px', fontWeight: '800', color: colors.primary }}>450 kg</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                )}
             </main>
         </div>
     );

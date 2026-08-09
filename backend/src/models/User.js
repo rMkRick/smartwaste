@@ -11,7 +11,7 @@ const Usuario = {
     },
     buscarPorId: async (id) => {
         const [rows] = await db.execute(
-            'SELECT id,nombres,apellidos,dni,correo,rol_id,zona_id,foto_perfil,estado,fecha_creacion FROM usuarios WHERE id = ?',
+            'SELECT id,nombres,apellidos,dni,correo,rol_id,zona_id,latitud,longitud,foto_perfil,estado,fecha_creacion FROM usuarios WHERE id = ?',
             [id]
         );
         return rows[0];
@@ -23,10 +23,10 @@ const Usuario = {
         );
         return rows[0];
     },
-    crear: async ({ nombres, apellidos, dni, correo, contrasena, rol_id, zona_id }) => {
+    crear: async ({ nombres, apellidos, dni, correo, contrasena, rol_id, zona_id, latitud, longitud }) => {
         const [r] = await db.execute(
-            'INSERT INTO usuarios (nombres, apellidos, dni, correo, contrasena, rol_id, zona_id) VALUES (?,?,?,?,?,?,?)',
-            [nombres, apellidos, dni, correo, contrasena, rol_id || 1, zona_id]
+            'INSERT INTO usuarios (nombres, apellidos, dni, correo, contrasena, rol_id, zona_id, latitud, longitud) VALUES (?,?,?,?,?,?,?,?,?)',
+            [nombres, apellidos, dni, correo, contrasena, rol_id || 1, zona_id, latitud || null, longitud || null]
         );
         return r.insertId;
     },

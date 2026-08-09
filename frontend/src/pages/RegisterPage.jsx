@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { register } from '../services/api';
-import { UserPlus, Eye, EyeOff, CheckCircle } from 'lucide-react';
+import { UserPlus, Eye, EyeOff, CheckCircle, MapPin } from 'lucide-react';
+import MapaPicker from '../components/MapaPicker';
 
 // ── Validadores ──────────────────────────────────────────────────────────────
 const validarDNI = (dni) => /^\d{8}$/.test(dni);
@@ -15,9 +16,14 @@ const validarContrasena = (c) => ({
 const ZONAS = [
     { id: 1, nombre: 'Centro Histórico' },
     { id: 2, nombre: 'San Blas' },
-    { id: 3, nombre: 'San Sebastián' },
-    { id: 4, nombre: 'Santiago' },
-    { id: 5, nombre: 'Wanchaq' },
+    { id: 3, nombre: 'Santa Ana' },
+    { id: 4, nombre: 'San Pedro' },
+    { id: 5, nombre: 'Tica Tica' },
+    { id: 6, nombre: 'Independencia' },
+    { id: 7, nombre: 'Ayuda Mutua' },
+    { id: 8, nombre: 'Balconcillo' },
+    { id: 9, nombre: 'Sacsayhuamán' },
+    { id: 10, nombre: 'Ccoripata' },
 ];
 
 // ── Estilos base (mismo look que LoginPage) ───────────────────────────────────
@@ -113,6 +119,7 @@ const RegisterPage = () => {
         nombres: '', apellidos: '', dni: '',
         correo: '', contrasena: '', zona_id: '',
     });
+    const [ubicacion, setUbicacion] = useState(null); // { lat, lng }
     const [errores, setErrores] = useState({});
     const [verContrasena, setVerContrasena] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -134,6 +141,7 @@ const RegisterPage = () => {
         if (!validarDNI(form.dni)) e.dni = 'El DNI debe tener exactamente 8 dígitos numéricos';
         if (!validarCorreo(form.correo)) e.correo = 'Ingresa un correo electrónico válido';
         if (!form.zona_id) e.zona_id = 'Selecciona tu zona de residencia';
+        if (!ubicacion) e.ubicacion = 'Indica tu ubicación de residencia en el mapa';
 
         const fuerza = validarContrasena(form.contrasena);
         if (!fuerza.longitud || !fuerza.mayuscula || !fuerza.numero) {
@@ -162,6 +170,8 @@ const RegisterPage = () => {
                 contrasena: form.contrasena,
                 rol_id: 1, // ciudadano por defecto
                 zona_id: parseInt(form.zona_id),
+                latitud: ubicacion.lat,
+                longitud: ubicacion.lng,
             });
 
             setExito(true);
@@ -317,6 +327,16 @@ const RegisterPage = () => {
                             ))}
                         </select>
                         {errores.zona_id && <p style={s.errorText}>{errores.zona_id}</p>}
+                    </div>
+
+                    {/* Ubicación de residencia */}
+                    <div style={s.field}>
+                        <label style={s.label}>
+                            <MapPin size={14} style={{ verticalAlign: 'text-bottom', marginRight: '4px' }} />
+                            Ubicación de Residencia *
+                        </label>
+                        <MapaPicker onChange={(lat, lng) => setUbicacion({ lat, lng })} />
+                        {errores.ubicacion && <p style={s.errorText}>{errores.ubicacion}</p>}
                     </div>
 
                     {/* Botón */}

@@ -4,7 +4,10 @@ const supervisorController = require('../controllers/supervisorController');
 const { verificarToken, soloRoles } = require('../middleware/auth');
 
 const soloSupervisor = [verificarToken, soloRoles(4)];
+const supervisorOAdmin = [verificarToken, soloRoles(3, 4)];
 
+router.get('/rutas-gestion',           supervisorOAdmin, supervisorController.rutasGestion);        // Gestión rutas (admin también la usa)
+router.get('/asignaciones-mes',        soloSupervisor, supervisorController.asignacionesMes);        // Calendario de planificación
 router.get('/reportes',                soloSupervisor, supervisorController.consultarReportes);     // CU17
 router.get('/cumplimiento-rutas',      soloSupervisor, supervisorController.cumplimientoRutas);     // CU18
 router.get('/reporte-ambiental',       soloSupervisor, supervisorController.reporteAmbiental);      // CU19

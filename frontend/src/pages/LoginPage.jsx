@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
+import { useFacebookLogin } from '../hooks/useFacebookLogin';
 import { login, register, loginSocial } from '../services/api';
 import { LogIn, UserPlus, Eye, EyeOff } from 'lucide-react';
 
@@ -15,9 +16,14 @@ const validarContrasena = (c) => ({
 const ZONAS = [
     { id: 1, nombre: 'Centro Histórico' },
     { id: 2, nombre: 'San Blas' },
-    { id: 3, nombre: 'San Sebastián' },
-    { id: 4, nombre: 'Santiago' },
-    { id: 5, nombre: 'Wanchaq' },
+    { id: 3, nombre: 'Santa Ana' },
+    { id: 4, nombre: 'San Pedro' },
+    { id: 5, nombre: 'Tica Tica' },
+    { id: 6, nombre: 'Independencia' },
+    { id: 7, nombre: 'Ayuda Mutua' },
+    { id: 8, nombre: 'Balconcillo' },
+    { id: 9, nombre: 'Sacsayhuamán' },
+    { id: 10, nombre: 'Ccoripata' },
 ];
 
 const s = {
@@ -161,6 +167,27 @@ const FormLogin = ({ onSwitch }) => {
         onError: () => setError('El inicio de sesión con Google fue cancelado'),
     });
 
+    const loginConFacebook = useFacebookLogin();
+
+    const handleFacebookLogin = async () => {
+        try {
+            const perfil = await loginConFacebook();
+            const { data } = await loginSocial({
+                nombres: perfil.first_name,
+                apellidos: perfil.last_name || '',
+                correo: perfil.email,
+                foto_perfil: perfil.picture?.data?.url,
+                proveedor_social: 'facebook',
+                proveedor_id: perfil.id,
+            });
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('usuario', JSON.stringify(data.usuario));
+            redirigirPorRol(data.usuario.rol);
+        } catch (err) {
+            setError(err.message || 'Error al iniciar sesión con Facebook');
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
@@ -248,7 +275,7 @@ const FormLogin = ({ onSwitch }) => {
                     </button>
                     <button
                         type="button"
-                        onClick={() => alert('Integración con Facebook próximamente')}
+                        onClick={handleFacebookLogin}
                         style={{
                             flex: 1, padding: '11px', border: '1.5px solid #dadce0',
                             borderRadius: '8px', backgroundColor: 'white', cursor: 'pointer',

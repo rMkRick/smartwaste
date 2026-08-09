@@ -37,6 +37,17 @@ exports.eliminar = async (req, res) => {
     } catch { res.status(500).json({ mensaje: 'Error al eliminar camión' }); }
 };
 
+exports.cambiarEstado = async (req, res) => {
+    try {
+        const { estado } = req.body;
+        // 'en_ruta' ya no es un estado manual: se calcula solo según las asignaciones activas.
+        if (!['disponible', 'mantenimiento', 'de_baja'].includes(estado))
+            return res.status(400).json({ mensaje: 'Estado inválido' });
+        await Camion.cambiarEstado(req.params.id, estado);
+        res.json({ mensaje: 'Estado del camión actualizado' });
+    } catch { res.status(500).json({ mensaje: 'Error al cambiar estado del camión' }); }
+};
+
 // CU7: consultarUbicacionCamion
 exports.ubicacion = async (req, res) => {
     try {
