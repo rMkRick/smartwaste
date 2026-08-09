@@ -351,7 +351,7 @@ const CitizenDashboard = () => {
                                     {[
                                         { zona: 'Centro Histórico', hora: 'Hoy 20:00', color: colors.primary },
                                         { zona: 'San Blas', hora: 'Mañana 19:00', color: colors.success },
-                                        { zona: 'San Sebastián', hora: 'Jueves 18:00', color: colors.warning }
+                                        { zona: 'Santa Ana', hora: 'Jueves 18:00', color: colors.warning }
                                     ].map((item, i) => (
                                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', backgroundColor: 'white', borderRadius: '8px', borderLeft: `4px solid ${item.color}` }}>
                                             <div style={{ flex: 1 }}>

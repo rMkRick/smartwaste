@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Trash2, Shield, MapPin, BarChart3, Bell, ArrowRight, Camera, X, LogIn } from 'lucide-react';
 import { useGoogleLogin } from '@react-oauth/google';
+import { useFacebookLogin } from '../hooks/useFacebookLogin';
 import { login, loginSocial } from '../services/api';
 
 const LandingPage = () => {
@@ -73,6 +74,27 @@ const LandingPage = () => {
         },
         onError: () => alert('El inicio de sesión con Google fue cancelado'),
     });
+
+    const loginConFacebook = useFacebookLogin();
+
+    const handleFacebookLogin = async () => {
+        try {
+            const perfil = await loginConFacebook();
+            const { data } = await loginSocial({
+                nombres: perfil.first_name,
+                apellidos: perfil.last_name || '',
+                correo: perfil.email,
+                foto_perfil: perfil.picture?.data?.url,
+                proveedor_social: 'facebook',
+                proveedor_id: perfil.id,
+            });
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('usuario', JSON.stringify(data.usuario));
+            redirigirPorRol(data.usuario.rol);
+        } catch (err) {
+            alert(err.message || 'Error al iniciar sesión con Facebook');
+        }
+    };
 
     return (
         <div style={{ fontFamily: '"Inter", sans-serif', color: colors.text, overflowX: 'hidden', margin: 0, padding: 0 }}>
@@ -270,7 +292,7 @@ const LandingPage = () => {
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => alert('Integración con Facebook próximamente')}
+                                    onClick={handleFacebookLogin}
                                     style={{
                                         flex: 1, padding: '11px', border: '1.5px solid #e2e8f0',
                                         borderRadius: '8px', backgroundColor: 'white', cursor: 'pointer',

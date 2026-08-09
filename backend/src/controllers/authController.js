@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const generarToken = (usuario) =>
     jwt.sign({ id: usuario.id, rol: usuario.rol_id }, process.env.JWT_SECRET, { expiresIn: '8h' });
 
-const validarDatos = ({ nombres, apellidos, dni, correo, contrasena, zona_id }) => {
+const validarDatos = ({ nombres, apellidos, dni, correo, contrasena, zona_id, latitud, longitud }) => {
     const e = [];
     if (!nombres || nombres.trim().length < 2)      e.push('Nombre debe tener al menos 2 caracteres');
     if (!apellidos || apellidos.trim().length < 2)   e.push('Apellido debe tener al menos 2 caracteres');
@@ -13,14 +13,17 @@ const validarDatos = ({ nombres, apellidos, dni, correo, contrasena, zona_id }) 
     if (!correo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) e.push('Correo inválido');
     if (!contrasena || contrasena.length < 8)        e.push('Contraseña debe tener al menos 8 caracteres');
     if (!zona_id || isNaN(zona_id))                  e.push('Debes seleccionar una zona');
+    if (latitud === undefined || latitud === null || isNaN(latitud) ||
+        longitud === undefined || longitud === null || isNaN(longitud))
+        e.push('Debes indicar tu ubicación de residencia en el mapa');
     return e;
 };
 
 // CU3: registroUsuario
 exports.register = async (req, res) => {
     try {
-        const { nombres, apellidos, dni, correo, contrasena, rol_id, zona_id } = req.body;
-        const errores = validarDatos({ nombres, apellidos, dni, correo, contrasena, zona_id });
+        const { nombres, apellidos, dni, correo, contrasena, rol_id, zona_id, latitud, longitud } = req.body;
+        const errores = validarDatos({ nombres, apellidos, dni, correo, contrasena, zona_id, latitud, longitud });
         if (errores.length) return res.status(400).json({ errores });
 
         if (await Usuario.buscarPorCorreo(correo))
@@ -30,7 +33,7 @@ exports.register = async (req, res) => {
 
         const salt = await bcrypt.genSalt(10);
         const contrasenaHash = await bcrypt.hash(contrasena, salt);
-        const usuarioId = await Usuario.crear({ nombres, apellidos, dni, correo, contrasena: contrasenaHash, rol_id, zona_id });
+        const usuarioId = await Usuario.crear({ nombres, apellidos, dni, correo, contrasena: contrasenaHash, rol_id, zona_id, latitud, longitud });
         res.status(201).json({ mensaje: 'Usuario registrado exitosamente', usuarioId });
     } catch (err) {
         console.error(err);

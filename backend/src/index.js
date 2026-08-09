@@ -20,6 +20,8 @@ app.use('/api/notificaciones', require('./routes/notificacionRoutes'));
 app.use('/api/zonas',          require('./routes/zonaRoutes'));
 // CU12, CU13
 app.use('/api/rutas',          require('./routes/rutaRoutes'));
+// Gestión de conductores (admin)
+app.use('/api/conductores',    require('./routes/conductorRoutes'));
 // CU14, CU15
 app.use('/api/recolecciones',  require('./routes/recoleccionRoutes'));
 // CU17, CU18, CU19, CU20, CU21, CU22
