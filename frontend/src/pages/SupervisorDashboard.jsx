@@ -968,7 +968,7 @@ export default function SupervisorDashboard() {
                                                                     color: asignadaHoy ? colors.success : '#94a3b8',
                                                                     padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: '700',
                                                                 }}>
-                                                                    {asignadaHoy ? 'ASIGNADA HOY' : 'SIN ASIGNAR'}
+                                                                    {asignadaHoy ? 'ASIGNADA' : 'SIN ASIGNAR'}
                                                                 </span>
                                                                 {esHoy && !asignadaHoy && ruta && (
                                                                     <button
