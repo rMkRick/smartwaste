@@ -568,10 +568,22 @@ export default function SupervisorDashboard() {
                             {selected.foto_url && selected.foto_url !== 'https://via.placeholder.com/300' && (
                                 <img src={selected.foto_url} alt="Evidencia" style={{ marginTop: '12px', width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: '8px' }} />
                             )}
-                            {selected.latitud && (
-                                <p style={{ margin: '10px 0 0 0', fontSize: '12px', color: '#64748b' }}>
-                                    Coordenadas: {parseFloat(selected.latitud).toFixed(4)}, {parseFloat(selected.longitud).toFixed(4)}
-                                </p>
+                            {selected.latitud && selected.longitud && (
+                                <>
+                                    <p style={{ margin: '10px 0 8px 0', fontSize: '12px', color: '#64748b' }}>
+                                        Coordenadas: {parseFloat(selected.latitud).toFixed(4)}, {parseFloat(selected.longitud).toFixed(4)}
+                                    </p>
+                                    <MapaRuta
+                                        key={selected.id ?? selected.numero_ticket}
+                                        waypoints={[{
+                                            lat: parseFloat(selected.latitud),
+                                            lng: parseFloat(selected.longitud),
+                                            label: 'Ubicación del reporte',
+                                        }]}
+                                        editable={false}
+                                        height="260px"
+                                    />
+                                </>
                             )}
                         </div>
 
