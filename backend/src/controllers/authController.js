@@ -13,9 +13,6 @@ const validarDatos = ({ nombres, apellidos, dni, correo, contrasena, zona_id, la
     if (!correo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) e.push('Correo inválido');
     if (!contrasena || contrasena.length < 8)        e.push('Contraseña debe tener al menos 8 caracteres');
     if (!zona_id || isNaN(zona_id))                  e.push('Debes seleccionar una zona');
-    if (latitud === undefined || latitud === null || isNaN(latitud) ||
-        longitud === undefined || longitud === null || isNaN(longitud))
-        e.push('Debes indicar tu ubicación de residencia en el mapa');
     return e;
 };
 
